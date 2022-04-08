@@ -1,0 +1,46 @@
+---
+title: "MSDS-6371-Project Group 4"
+author: "Ryan Herrin, Akib Hossain, Ronak Hamzehlou"
+date: "4/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(stringr)
+library(plotly)
+library(ggplot2)
+library(plyr) # Load first before dplyer 
+library(dplyr)
+library(tidyr)
+#library(investr)
+#library(HH) <-- For creating cool charts
+```
+
+# Import Data
+```{r}
+house_train_loc <- "data/train.csv"
+house_test_loc <- "data/test.csv"
+
+# Read in data 
+house_train <- read.csv(house_train_loc, header = TRUE)
+house_test <- read.csv(house_test_loc, header = TRUE)
+```
+
+# 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
