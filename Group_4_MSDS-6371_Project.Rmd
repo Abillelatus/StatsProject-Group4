@@ -19,8 +19,8 @@ library(tidyr)
 
 # Import Data
 ```{r}
-house_train_loc <- "data/train.csv"
-house_test_loc <- "data/test.csv"
+house_train_loc <- "data/starting_data/train.csv"
+house_test_loc <- "data/starting_data/test.csv"
 
 # Read in data 
 house_train <- read.csv(house_train_loc, header = TRUE)
