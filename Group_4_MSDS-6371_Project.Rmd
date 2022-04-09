@@ -6,18 +6,19 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 library(stringr)
 library(plotly)
 library(ggplot2)
 library(plyr) # Load first before dplyer 
 library(dplyr)
 library(tidyr)
-#library(investr)
-#library(HH) <-- For creating cool charts
+library(investr)
+library(HH) 
+library(scales)
 ```
 
-# Import Data
+Import Data
 ```{r}
 house_train_loc <- "data/starting_data/train.csv"
 house_test_loc <- "data/starting_data/test.csv"
@@ -27,9 +28,176 @@ house_train <- read.csv(house_train_loc, header = TRUE)
 house_test <- read.csv(house_test_loc, header = TRUE)
 ```
 
-# 
+# Analysis Question 1
+```{r}
+# Create a data set that only includes the Neighborhoods, GrLIvArea, Salesprice
+analys_1_data <- data.frame(Id=house_train$Id, Nbhd=house_train$Neighborhood,
+                            GrLivArea=house_train$GrLivArea,
+                            SalePrice=house_train$SalePrice)
+
+# Narrow down the neighborhoods
+analys_1_data <- filter(analys_1_data, 
+                        Nbhd == "NAmes" | Nbhd == "Edwards" | Nbhd == "BrkSide")
+
+# Create a scatter plot to visualize the initial data 
+ggplot(analys_1_data, aes(x=GrLivArea, y=SalePrice, color=Nbhd)) +
+  geom_point() + 
+  scale_y_continuous(labels = unit_format(unit = "K", scale = 1e-3)) + 
+  ggtitle("Sales Price vs Living Area (in sqft)")
+```
+
+- Edwards has a few outliers with high living areas space but a relatively average
+Sale price. 
+- Two noticable outliers in the Sales price 
+
+```{r}
+# find Edwards outliers from original data set
+# aq_1 = analysis question 1
+aq_1_grlivarea_outliers <- filter(analys_1_data, 
+                                  Nbhd == "Edwards" & GrLivArea > 4000)
+print(aq_1_grlivarea_outliers$Id)
+
+# Find outliers for sales price
+aq_1_price_outliers <- filter(analys_1_data, SalePrice > 3e+05)
+print(aq_1_price_outliers$Id)
+```
+
+- This gives us ID 524, and 1299 for living area 
+- And 643 and 725 for sale price 
+- Need to keep an eye on the influence of these guys
 
 
+Make seperate data frames for each Nhbd to reduce human errors from constantly 
+filtering. Includes function to add or remove the outliers for the rest of the 
+analysis 1 question. Always run this block before running lower blocks after 
+a change is made. 
+```{r}
+# Create function that removes or adds back in the outliers if needed 
+# Default is to leave them in 
+
+##############################################
+# Set TRUE to include in data 
+# Set FALSE to exclude from data 
+use_price_outliers <- TRUE
+use_grlivarea_outliers <- FALSE
+##############################################
+
+use_outlier <- function(data, bool_p, bool_la, p_outlrs, la_outlrs) {
+  
+  check_status <- function(data_tmp, x) {
+    # Reusable to check if value is already in dataframe 
+    if (x %in% data_tmp$Id) {return(TRUE)} else {return(FALSE)}
+  }#END
+  
+  # Logic to add price outlier in data frame 
+  if (bool_p == TRUE) {
+    for (id in p_outlrs$Id) {
+      if (check_status(data, id) == FALSE) {
+        data = rbind(data, filter(p_outlrs, Id == id)) # Appends to df 
+  }}}
+
+  # Logic to remove price outlier in data frame 
+  if (bool_p == FALSE) {
+    for (id in p_outlrs$Id) {
+      if (check_status(data, id) == TRUE) {
+        data = data[!(data$Id == id),] # Remove from DF
+  }}} 
+
+  # Logic to add living area outlier in data frame 
+  if (bool_la == TRUE) {
+    for (id in la_outlrs$Id) {
+      if (check_status(data, id) == FALSE) {
+        data = rbind(data, filter(la_outlrs, Id == id)) # Appends to df 
+  }}}
+
+  # Logic to remove living area outlier in data frame 
+  if (bool_la == FALSE) {
+    for (id in la_outlrs$Id) {
+      if (check_status(data, id) == TRUE) {
+        data = data[!(data$Id == id),] # Remove from DF
+  }}} 
+  
+  return(data) 
+}
+
+# Modifiy the dataframe to include or not include the outliers 
+analys_1_data <- use_outlier(analys_1_data, use_price_outliers, 
+                             use_grlivarea_outliers, aq_1_price_outliers,
+                             aq_1_grlivarea_outliers)
+
+# Make seperate data frames for each Nhbd
+aq_1_NAmes <- filter(analys_1_data, Nbhd == "NAmes")
+aq_1_Edwards <- filter(analys_1_data, Nbhd == "Edwards")
+aq_1_BrkSide <- filter(analys_1_data, Nbhd == "BrkSide")
+```
+
+Add charts and add linear regression lines
+```{r}
+# Create vars to set common scale for each plot
+cust_y_lim <- c(50000, 350000)
+cust_x_lim <- c(0, 6500)
+
+# Create fit models 
+aq_1_NAmes_fit <- lm(SalePrice ~ GrLivArea, data=aq_1_NAmes)
+aq_1_Edwards_fit <- lm(SalePrice ~ GrLivArea, data=aq_1_Edwards)
+aq_1_BrkSide_fit <- lm(SalePrice ~ GrLivArea, data=aq_1_BrkSide)
+aq_1_all_nbhd_fit <- lm(SalePrice ~ GrLivArea, data=analys_1_data)
+
+# Linear regression plot for only NAmes
+# Plot 
+plot(aq_1_NAmes$GrLivArea, aq_1_NAmes$SalePrice, 
+     xlab = "Living Area in sqft", ylab = "Sales Price in US Dollars",
+     main= "NAmes with Regression", col = "blue", 
+     xlim = cust_x_lim, ylim = cust_y_lim)
+abline(aq_1_NAmes_fit, col = "blue") # Add regression line 
+
+# Linear regression plot for only Edwards
+# Plot 
+plot(aq_1_Edwards$GrLivArea, aq_1_Edwards$SalePrice, 
+     xlab = "Living Area in sqft", ylab = "Sales Price in US Dollars",
+     main= "Edwards with Regression", col = "green", 
+     xlim = cust_x_lim, ylim = cust_y_lim)
+abline(aq_1_Edwards_fit, col = "green") # Add regression line 
+
+# Linear regression plot for only BrkSide
+# Plot 
+plot(aq_1_BrkSide$GrLivArea, aq_1_BrkSide$SalePrice, 
+     xlab = "Living Area in sqft", ylab = "Sales Price in US Dollars",
+     main= "BrkSide with Regression", col = "red", 
+     xlim = cust_x_lim, ylim = cust_y_lim)
+abline(aq_1_BrkSide_fit, col = "red") # Add regression line 
+
+# Create linear regression model with all locations included 
+# Plot 
+plot(analys_1_data$GrLivArea, analys_1_data$SalePrice, 
+     xlab = "Living Area in sqft", ylab = "Sales Price in US Dollars",
+     main = "All 3 Neighborhoods with Regression",
+     xlim = cust_x_lim, ylim = cust_y_lim)
+abline(aq_1_all_nbhd_fit) # Add regression line for combines
+abline(aq_1_NAmes_fit, col = "blue")
+abline(aq_1_Edwards_fit, col = "green")
+abline(aq_1_BrkSide_fit, col = "red")
+```
+
+- There is vidual evidence that the slopes are different for each neighborhood
+
+Print out a summary of each fit model 
+```{r}
+# Print Summary of fit models to find formula 
+# NAmes
+summary(aq_1_NAmes_fit)
+# Edwards
+summary(aq_1_Edwards_fit)
+# BrkSide
+summary(aq_1_BrkSide_fit)
+# All 
+summary(aq_1_all_nbhd_fit)
+```
+
+##Model Formulas
+SP = Sales Price
+With Living Area Outliers left in:
+- SP = 
 
 
 
