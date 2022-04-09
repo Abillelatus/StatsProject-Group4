@@ -73,12 +73,11 @@ analysis 1 question. Always run this block before running lower blocks after
 a change is made. 
 ```{r}
 # Create function that removes or adds back in the outliers if needed 
-# Default is to leave them in 
 
 ##############################################
 # Set TRUE to include in data 
 # Set FALSE to exclude from data 
-use_price_outliers <- TRUE
+use_price_outliers <- FALSE
 use_grlivarea_outliers <- FALSE
 ##############################################
 
@@ -129,6 +128,12 @@ analys_1_data <- use_outlier(analys_1_data, use_price_outliers,
 aq_1_NAmes <- filter(analys_1_data, Nbhd == "NAmes")
 aq_1_Edwards <- filter(analys_1_data, Nbhd == "Edwards")
 aq_1_BrkSide <- filter(analys_1_data, Nbhd == "BrkSide")
+
+# Create fit models 
+aq_1_NAmes_fit <- lm(SalePrice ~ GrLivArea, data=aq_1_NAmes)
+aq_1_Edwards_fit <- lm(SalePrice ~ GrLivArea, data=aq_1_Edwards)
+aq_1_BrkSide_fit <- lm(SalePrice ~ GrLivArea, data=aq_1_BrkSide)
+aq_1_all_nbhd_fit <- lm(SalePrice ~ GrLivArea, data=analys_1_data)
 ```
 
 Add charts and add linear regression lines
@@ -136,12 +141,6 @@ Add charts and add linear regression lines
 # Create vars to set common scale for each plot
 cust_y_lim <- c(50000, 350000)
 cust_x_lim <- c(0, 6500)
-
-# Create fit models 
-aq_1_NAmes_fit <- lm(SalePrice ~ GrLivArea, data=aq_1_NAmes)
-aq_1_Edwards_fit <- lm(SalePrice ~ GrLivArea, data=aq_1_Edwards)
-aq_1_BrkSide_fit <- lm(SalePrice ~ GrLivArea, data=aq_1_BrkSide)
-aq_1_all_nbhd_fit <- lm(SalePrice ~ GrLivArea, data=analys_1_data)
 
 # Linear regression plot for only NAmes
 # Plot 
@@ -182,22 +181,80 @@ abline(aq_1_BrkSide_fit, col = "red")
 - There is vidual evidence that the slopes are different for each neighborhood
 
 Print out a summary of each fit model 
-```{r}
+```{r figures-side, out.width="50%"}
 # Print Summary of fit models to find formula 
 # NAmes
 summary(aq_1_NAmes_fit)
+plot(aq_1_NAmes_fit)
+
 # Edwards
 summary(aq_1_Edwards_fit)
+plot(aq_1_Edwards_fit)
+
 # BrkSide
 summary(aq_1_BrkSide_fit)
+plot(aq_1_BrkSide_fit)
+
 # All 
 summary(aq_1_all_nbhd_fit)
+plot(aq_1_all_nbhd_fit)
 ```
 
-##Model Formulas
-SP = Sales Price
-With Living Area Outliers left in:
-- SP = 
+## Model Formulas
+```{r}
+# Create Sales Price for NAmes
+NAmes_int <- round(aq_1_NAmes_fit[["coefficients"]][["(Intercept)"]],digits=2)
+NAmes_slope <- round(aq_1_NAmes_fit[["coefficients"]][["GrLivArea"]],digits=2)
+
+# Create Sales Price for Edwards
+Edwards_int <- round(aq_1_Edwards_fit[["coefficients"]][["(Intercept)"]],digits=2)
+Edwards_slope <- round(aq_1_Edwards_fit[["coefficients"]][["GrLivArea"]],digits=2)
+
+# Create Sales Price for BrkSide
+BrkSide_int <- round(aq_1_BrkSide_fit[["coefficients"]][["(Intercept)"]],digits=2)
+BrkSide_slope <- round(aq_1_BrkSide_fit[["coefficients"]][["GrLivArea"]],digits=2)
+
+cat(
+"(SalesPrice | NAmes) = ", NAmes_int, " + ", NAmes_slope, "(Sqft)\n",
+"(SalesPrice | Edwards) = ", Edwards_int, " + ", Edwards_slope, "(Sqft)\n", 
+"(SalesPrice | BrkSide) = ", BrkSide_int, " + ", BrkSide_slope, "(Sqft)",
+sep = "")
+
+# Create confidence Intervals for the slopes
+# NAmes Lower 
+NAmes_ci_upper <- aq_1_NAmes_fit[["coefficients"]][["GrLivArea"]] + 
+  (qt(.975, (nrow(aq_1_NAmes)-2)) * summary(aq_1_NAmes_fit)$coefficients[2,2])
+NAmes_ci_upper <- round(NAmes_ci_upper, digits = 2) # Round off 2 spots
+# NAmes Upper 
+NAmes_ci_lower <- aq_1_NAmes_fit[["coefficients"]][["GrLivArea"]] - 
+  (qt(.975, (nrow(aq_1_NAmes)-2)) * summary(aq_1_NAmes_fit)$coefficients[2,2])
+NAmes_ci_lower <- round(NAmes_ci_lower, digits = 2) # Round off 2 spots
+
+# Edwards Lower 
+Edwards_ci_upper <- aq_1_Edwards_fit[["coefficients"]][["GrLivArea"]] + 
+  (qt(.975, (nrow(aq_1_Edwards)-2)) * summary(aq_1_Edwards_fit)$coefficients[2,2])
+Edwards_ci_upper <- round(Edwards_ci_upper, digits = 2) # Round off 2 spots
+# Edwards Upper 
+Edwards_ci_lower <- aq_1_Edwards_fit[["coefficients"]][["GrLivArea"]] - 
+  (qt(.975, (nrow(aq_1_Edwards)-2)) * summary(aq_1_Edwards_fit)$coefficients[2,2])
+Edwards_ci_lower <- round(Edwards_ci_lower, digits = 2) # Round off 2 spots
+
+# BrkSide Lower 
+BrkSide_ci_upper <- aq_1_BrkSide_fit[["coefficients"]][["GrLivArea"]] + 
+  (qt(.975, (nrow(aq_1_BrkSide)-2)) * summary(aq_1_BrkSide_fit)$coefficients[2,2])
+BrkSide_ci_upper <- round(BrkSide_ci_upper, digits = 2) # Round off 2 spots
+# BrkSide Upper 
+BrkSide_ci_lower <- aq_1_BrkSide_fit[["coefficients"]][["GrLivArea"]] - 
+  (qt(.975, (nrow(aq_1_BrkSide)-2)) * summary(aq_1_BrkSide_fit)$coefficients[2,2])
+BrkSide_ci_lower <- round(BrkSide_ci_lower, digits = 2) # Round off 2 spots
+
+# Print out confidence intervals 
+cat('95% CI of NAmes [', NAmes_ci_lower, ', ', NAmes_ci_upper, ']\n', 
+'95% CI of Edwards [', Edwards_ci_lower, ', ', Edwards_ci_upper, ']\n', 
+'95% CI of BrkSide [', BrkSide_ci_lower, ', ', BrkSide_ci_upper, ']\n', 
+sep = "")
+```
+
 
 
 
