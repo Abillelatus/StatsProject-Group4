@@ -427,47 +427,205 @@ BrkSide_slope &lt;- round(aq_1_BrkSide_fit[[&quot;coefficients&quot;]][[&quot;Gr
 cat(
 &quot;(SalesPrice | NAmes) = &quot;, NAmes_int, &quot; + &quot;, NAmes_slope, &quot;(Sqft)\n&quot;,
 &quot;(SalesPrice | Edwards) = &quot;, Edwards_int, &quot; + &quot;, Edwards_slope, &quot;(Sqft)\n&quot;, 
-&quot;(SalesPrice | BrkSide) = &quot;, BrkSide_int, &quot; + &quot;, BrkSide_slope, &quot;(Sqft)&quot;,
+&quot;(SalesPrice | BrkSide) = &quot;, BrkSide_int, &quot; + &quot;, BrkSide_slope, &quot;(Sqft)\n&quot;,
 sep = &quot;&quot;)</code></pre>
 <pre><code>## (SalesPrice | NAmes) = 80325.71 + 49.56(Sqft)
 ## (SalesPrice | Edwards) = 37100.42 + 70.16(Sqft)
 ## (SalesPrice | BrkSide) = 19971.51 + 87.16(Sqft)</code></pre>
 <pre class="r"><code># Create confidence Intervals for the slopes
-# NAmes Lower 
+# NAmes Upper 
 NAmes_ci_upper &lt;- aq_1_NAmes_fit[[&quot;coefficients&quot;]][[&quot;GrLivArea&quot;]] + 
   (qt(.975, (nrow(aq_1_NAmes)-2)) * summary(aq_1_NAmes_fit)$coefficients[2,2])
 NAmes_ci_upper &lt;- round(NAmes_ci_upper, digits = 2) # Round off 2 spots
-# NAmes Upper 
+# NAmes Lower 
 NAmes_ci_lower &lt;- aq_1_NAmes_fit[[&quot;coefficients&quot;]][[&quot;GrLivArea&quot;]] - 
   (qt(.975, (nrow(aq_1_NAmes)-2)) * summary(aq_1_NAmes_fit)$coefficients[2,2])
 NAmes_ci_lower &lt;- round(NAmes_ci_lower, digits = 2) # Round off 2 spots
 
-# Edwards Lower 
+# Edwards Upper  
 Edwards_ci_upper &lt;- aq_1_Edwards_fit[[&quot;coefficients&quot;]][[&quot;GrLivArea&quot;]] + 
   (qt(.975, (nrow(aq_1_Edwards)-2)) * summary(aq_1_Edwards_fit)$coefficients[2,2])
 Edwards_ci_upper &lt;- round(Edwards_ci_upper, digits = 2) # Round off 2 spots
-# Edwards Upper 
+# Edwards Lower 
 Edwards_ci_lower &lt;- aq_1_Edwards_fit[[&quot;coefficients&quot;]][[&quot;GrLivArea&quot;]] - 
   (qt(.975, (nrow(aq_1_Edwards)-2)) * summary(aq_1_Edwards_fit)$coefficients[2,2])
 Edwards_ci_lower &lt;- round(Edwards_ci_lower, digits = 2) # Round off 2 spots
 
-# BrkSide Lower 
+# BrkSide Upper 
 BrkSide_ci_upper &lt;- aq_1_BrkSide_fit[[&quot;coefficients&quot;]][[&quot;GrLivArea&quot;]] + 
   (qt(.975, (nrow(aq_1_BrkSide)-2)) * summary(aq_1_BrkSide_fit)$coefficients[2,2])
 BrkSide_ci_upper &lt;- round(BrkSide_ci_upper, digits = 2) # Round off 2 spots
-# BrkSide Upper 
+# BrkSide Lower 
 BrkSide_ci_lower &lt;- aq_1_BrkSide_fit[[&quot;coefficients&quot;]][[&quot;GrLivArea&quot;]] - 
   (qt(.975, (nrow(aq_1_BrkSide)-2)) * summary(aq_1_BrkSide_fit)$coefficients[2,2])
 BrkSide_ci_lower &lt;- round(BrkSide_ci_lower, digits = 2) # Round off 2 spots
 
 # Print out confidence intervals 
-cat(&#39;95% CI of NAmes [&#39;, NAmes_ci_lower, &#39;, &#39;, NAmes_ci_upper, &#39;]\n&#39;, 
+cat(
+&#39;95% CI of NAmes [&#39;, NAmes_ci_lower, &#39;, &#39;, NAmes_ci_upper, &#39;]\n&#39;, 
 &#39;95% CI of Edwards [&#39;, Edwards_ci_lower, &#39;, &#39;, Edwards_ci_upper, &#39;]\n&#39;, 
 &#39;95% CI of BrkSide [&#39;, BrkSide_ci_lower, &#39;, &#39;, BrkSide_ci_upper, &#39;]\n&#39;, 
 sep = &quot;&quot;)</code></pre>
 <pre><code>## 95% CI of NAmes [42.09, 57.03]
 ## 95% CI of Edwards [53.21, 87.1]
 ## 95% CI of BrkSide [71.8, 102.53]</code></pre>
+</div>
+</div>
+<div id="analysis-question-2" class="section level1">
+<h1>Analysis Question 2</h1>
+<pre class="r"><code># Create a new DF that changes all chr columns into factors 
+aq_2_house_train &lt;- house_train
+
+# Change &quot;chr&quot; columns into &quot;factor&quot; columns 
+aq_2_house_train[sapply(aq_2_house_train, is.character)] &lt;- 
+  lapply(aq_2_house_train[sapply(aq_2_house_train, is.character)], as.factor)
+
+# Change &quot;int&quot; columns into &quot;numeric&quot; columns
+aq_2_house_train[sapply(aq_2_house_train, is.integer)] &lt;- 
+  lapply(aq_2_house_train[sapply(aq_2_house_train, is.integer)], as.numeric)
+
+# Words cannot explain the pain it took to find out that these columns are the 
+# ones causing the linear fit model to fail. 
+aq_2_house_train &lt;- subset(aq_2_house_train, 
+                           select = -c(Street, Alley, Utilities, PoolQC, 
+                                       MiscFeature, Condition2))
+
+# Create Initial Model off original data set 
+# Remove Id variable 
+aq_2_init_model &lt;- lm(SalePrice ~ . -Id, data = aq_2_house_train)</code></pre>
+<p>Okay lets narrow down the var selection by using the foward methed and setting an initial P-value of .2</p>
+<pre class="r"><code># Create the model to narrow down the selection
+# Using the &quot;olsrr&quot; library
+############################################################################
+#ols_step_forward_p(aq_2_init_model, penter=0.2)
+############################################################################</code></pre>
+<p>That took FOREVER to run…. I’m commenting it out so I don’t have to run it again Output is below:</p>
+<div id="selection-summary" class="section level2">
+<h2>Selection Summary</h2>
+<pre><code>    Variable                       Adj.                                          </code></pre>
+</div>
+<div id="step-entered-r-square-r-square-cp-aic-rmse" class="section level2">
+<h2>Step Entered R-Square R-Square C(p) AIC RMSE</h2>
+<p>1 OverallQual 0.6257 0.6254 NaN 35659.4925 48622.7618<br />
+2 GrLivArea 0.7142 0.7138 NaN 35267.5843 42501.3029<br />
+3 Neighborhood 0.7868 0.7830 NaN 34887.2460 37008.5234<br />
+4 BsmtQual 0.8078 0.8038 NaN 33861.2011 35163.0890<br />
+5 RoofMatl 0.8269 0.8224 NaN 33726.7284 33459.8734<br />
+6 BsmtFinSF1 0.8477 0.8436 NaN 33546.4954 31395.8751<br />
+7 MSSubClass 0.8589 0.8550 NaN 33439.2811 30224.8066<br />
+8 BsmtExposure 0.8684 0.8645 NaN 33323.5880 29230.4864<br />
+9 KitchenQual 0.8768 0.8729 NaN 33235.6537 28311.5939<br />
+10 OverallCond 0.8814 0.8775 NaN 33184.3985 27796.4746<br />
+11 YearBuilt 0.8851 0.8813 NaN 33140.7575 27363.8972<br />
+12 LotArea 0.8885 0.8847 NaN 33100.3303 26968.5175<br />
+13 GarageCars 0.8906 0.8868 NaN 33075.2672 26722.8322<br />
+14 PoolArea 0.8924 0.8886 NaN 33053.5060 26510.1530<br />
+15 SaleCondition 0.8950 0.8908 NaN 33029.0629 26238.8848<br />
+16 TotalBsmtSF 0.8963 0.8922 NaN 33012.5543 26078.2183<br />
+17 Condition1 0.8986 0.8939 NaN 32996.8273 25864.7625<br />
+18 Fireplaces 0.8996 0.8949 NaN 32985.3270 25751.7579<br />
+19 ExterQual 0.9010 0.8961 NaN 32971.1178 25597.7283<br />
+20 Functional 0.9026 0.8974 NaN 32959.4450 25441.9764<br />
+21 LotConfig 0.9039 0.8984 NaN 32948.4802 25310.4650<br />
+22 Exterior1st 0.9063 0.9000 NaN 32938.4776 25113.8290<br />
+23 LandContour 0.9072 0.9007 NaN 32931.0707 25023.9359<br />
+24 BldgType 0.9082 0.9015 NaN 32923.1147 24921.4947<br />
+25 KitchenAbvGr 0.9086 0.9018 NaN 32919.5721 24882.3720<br />
+26 LowQualFinSF 0.9090 0.9022 NaN 32915.8277 24841.5542<br />
+27 YearRemodAdd 0.9093 0.9024 NaN 32912.5332 24804.7352<br />
+28 LandSlope 0.9098 0.9028 NaN 32908.8634 24756.6784<br />
+29 ScreenPorch 0.9101 0.9031 NaN 32905.9303 24723.1476<br />
+30 MSZoning 0.9108 0.9036 NaN 32902.6114 24662.3992<br />
+31 BedroomAbvGr 0.9111 0.9038 NaN 32899.5589 24627.9977<br />
+32 TotRmsAbvGrd 0.9116 0.9043 NaN 32893.6229 24568.7282<br />
+33 MasVnrArea 0.9117 0.9043 NaN 32704.8701 24523.6760<br />
+34 BsmtFullBath 0.9119 0.9044 NaN 32703.3935 24502.9508<br />
+35 GarageQual 0.9109 0.9026 NaN 31014.8491 24630.1265<br />
+36 GarageCond 0.9115 0.9029 NaN 31014.2780 24591.6965<br />
+37 WoodDeckSF 0.9117 0.9030 NaN 31013.3509 24574.9261<br />
+38 MoSold 0.9119 0.9031 NaN 31012.6265 24560.0329<br />
+39 X3SsnPorch 0.9120 0.9032 NaN 31012.4816 24550.4644<br />
+40 GarageFinish 0.9123 0.9033 NaN 31012.3148 24532.4900<br />
+41 MasVnrType 0.9126 0.9035 NaN 31013.1462 24515.5069<br />
+42 Foundation 0.9131 0.9036 NaN 31014.3962 24494.2920<br />
+43 LotFrontage 0.9177 0.9066 NaN 25468.2822 25412.9090<br />
+44 FullBath 0.9179 0.9067 NaN 25467.1392 25389.6561<br />
+45 LotShape 0.9184 0.9071 NaN 25466.0527 25347.1777<br />
+46 X1stFlrSF 0.9186 0.9071 NaN 25468.0752 25337.5077<br />
+47 X2ndFlrSF NA NA NA NA NA<br />
+———————————————————————————</p>
+<p>Alrighty. Lets create a new data set with only these guys</p>
+<pre class="r"><code># Create a new DF with the VARs from the first forward run 
+# Manually removing X1stFlrSF, X2ndFlrSF, and MoSold, RoofMatl, ScreenPorch
+aq_2_train_reduced &lt;- subset(aq_2_house_train, 
+  select = c(Id, OverallQual, GrLivArea, Neighborhood, BsmtQual,  
+             RoofMatl, BsmtFinSF1, MSSubClass, BsmtExposure, KitchenQual, 
+             OverallCond, YearBuilt, LotArea, GarageCars, PoolArea, SaleCondition, 
+             TotalBsmtSF, Condition1, Fireplaces, ExterQual, Functional, LotConfig, 
+             LandContour, BldgType, KitchenAbvGr, LowQualFinSF, 
+             YearRemodAdd, LandSlope, MSZoning, BedroomAbvGr, 
+             TotRmsAbvGrd, MasVnrArea, BsmtFullBath, GarageQual, GarageCond, 
+             WoodDeckSF, X3SsnPorch, GarageFinish, MasVnrType, Foundation,
+             LotFrontage, FullBath, LotShape, SalePrice))</code></pre>
+<p>Split Data 80/20</p>
+<pre class="r"><code># Split the data 80/20 ##########
+smp_size &lt;- floor(0.80 * nrow(aq_2_train_reduced))
+set.seed(123)
+train_ind &lt;- sample(seq_len(nrow(aq_2_train_reduced)), size = smp_size)
+house_reduced_80 &lt;- aq_2_train_reduced[train_ind, ]
+house_reduced_20 &lt;- aq_2_train_reduced[-train_ind, ]
+#################################</code></pre>
+<pre class="r"><code># Create another fit model
+aq_2_reduced_model &lt;- lm(SalePrice ~ . -Id, data = aq_2_train_reduced)
+#summary(aq_2_reduced_model)</code></pre>
+<p>Now lets run that forward model again and see what it spits out</p>
+<pre class="r"><code># Use another redection to create the forward model
+aq_2_forward &lt;- ols_step_forward_p(aq_2_reduced_model, penter = .05)
+aq_2_reduced_fwd_model &lt;- aq_2_forward$model</code></pre>
+<p>Try to predict with the forward model</p>
+<pre class="r"><code># Makes a test to compare against the 80%
+fwrd_results = data.frame(original=house_reduced_20$SalePrice,
+                          est = predict(aq_2_reduced_fwd_model, house_reduced_20))</code></pre>
+<p>Okay, not bad. Let’s create a kaggle output</p>
+<pre class="r"><code>fwrd_final &lt;- data.frame(
+  Id = house_test$Id,
+  SalePrice = predict(aq_2_reduced_fwd_model, house_test)
+)
+
+write.csv(fwrd_final, &quot;data/group4_Submission_fwd.csv&quot;, row.names = FALSE)</code></pre>
+<p>Kaggle Score of 0.18268</p>
+<p>Backwards Model next</p>
+<pre class="r"><code># Create backwards model 
+aq_2_back &lt;- ols_step_backward_p(aq_2_reduced_model, prem = .07)
+aq_2_reduced_model_back &lt;- aq_2_back$model
+
+#summary(aq_2_reduced_model_back)
+
+# Test against test data 
+back_results = data.frame(original=house_reduced_20$SalePrice,
+                          est = predict(aq_2_reduced_model_back, 
+                                        house_reduced_20))</code></pre>
+<p>It doesn’t look as good as the frwd model</p>
+<p>Create the stepwise model</p>
+<pre class="r"><code># Create a stepwise model
+aq_2_step &lt;- ols_step_both_p(aq_2_reduced_model, penter = 0.05, prem = .07)
+aq_2_reduced_model_step &lt;- aq_2_step$model
+
+step_results = data.frame(original=house_reduced_20$SalePrice,
+                          est = predict(aq_2_reduced_model_step, 
+                                        house_reduced_20))</code></pre>
+<p>Create output for the actual results to submit to kaggle</p>
+<pre class="r"><code>step_final &lt;- data.frame(
+  Id = house_test$Id,
+  SalePrice = predict(aq_2_reduced_model_step, house_test)
+)
+
+# Find and replace NA values
+step_mean &lt;- round(mean(step_final$SalePrice, na.rm = TRUE), digits = 2)
+step_final$SalePrice[is.na(step_final$SalePrice)] &lt;- step_mean
+
+write.csv(step_final, &quot;data/group4_Submission_step.csv&quot;, row.names = FALSE)</code></pre>
+<p>Kaggle Score: .20194</p>
 </div>
 </div>
 
